@@ -3,14 +3,20 @@ import numpy as np
 from sklearn.metrics import mean_squared_error
 import cma
 import warnings
+import yaml
 
 
 class Linear_Regression :
 
-	def __init__( self ) :
-		from sklearn.linear_model import LinearRegression
+	def __init__( self, L1_reg=None ) :
+		self._L1_reg = L1_reg
 
-		self.model = LinearRegression()
+		if L1_reg is None :
+			from sklearn.linear_model import LinearRegression
+			self.model = LinearRegression()
+		else :
+			from sklearn.linear_model import Lasso
+			self.model = Lasso( L1_reg )
 
 	def fit( self, X, y ) :
 		self.model.fit( X, y )
@@ -18,18 +24,27 @@ class Linear_Regression :
 	def predict( self, X ) :
 		return self.model.predict( X )
 
-	def get_coefs( self ) :
-		return np.append( self.model.coef_, self.model.intercept_ )
+	def get_params( self ) :
+		return np.append( self.model.coef_, self.model.intercept_ ).tolist()
+
+	def set_params( self, params ) :
+		self.model.coef_ = np.array( params[:-1] )
+		self.model.intercept_ = params[-1]
+		self.model.n_iter_ = 0
+
+	def __str__( self ) :
+		return 'Linear regression%s' % ( ' with a L1 regularization coefficient of %g' % self._L1_reg ) if self._L1_reg is not None else ''
 
 
-class Polynomial_Regression :
+class Polynomial_Regression( Linear_Regression ) :
 
-	def __init__( self, degree=2 ) :
+	def __init__( self, degree=2, L1_reg=None ) :
+		self._degree = degree
+
 		from sklearn.preprocessing import PolynomialFeatures
-		from sklearn.linear_model import LinearRegression
-
 		self.preprocessing = PolynomialFeatures( degree, include_bias=False )
-		self.model = LinearRegression()
+
+		Linear_Regression.__init__( self, L1_reg )
 
 	def fit( self, X, y ) :
 		X_poly = self.preprocessing.fit_transform( X ) 
@@ -39,8 +54,8 @@ class Polynomial_Regression :
 		X_poly = self.preprocessing.fit_transform( X ) 
 		return self.model.predict( X_poly )
 
-	def get_coefs( self ) :
-		return np.append( self.model.coef_, self.model.intercept_ )
+	def __str__( self ) :
+		return 'Polynomial regression of degree %i%s' % ( self._degree, ( ' with a L1 regularization coefficient of %g' % self._L1_reg ) if self._L1_reg is not None else '' )
 
 
 def CMA_Search( X, cost_function, verbose=False, indentation=0 ) :
@@ -62,19 +77,19 @@ def CMA_Search( X, cost_function, verbose=False, indentation=0 ) :
 		#es.result_pretty()
 
 	coef_max = max( abs( es.result.xbest ) )*( -1 if es.result.xbest[0] < 0 else 1 )
-	opti_coefs = es.result.xbest/coef_max
+	opti_params = es.result.xbest/coef_max
 
-	return opti_coefs
+	return opti_params
 
 
 class Oblique_Model_Tree :
 
-	def __init__( self, max_depth=5, min_samples_leaf=1, model='linear', loss_tol=None, margin_coef=0.01, split_search='cma-es' ) :
+	def __init__( self, max_depth=5, min_samples_leaf=1, model='linear', loss_tol=None, margin_coef=0.01, split_search='cma-es', **model_options ) :
 
 		if model == 'linear' :
-			self.model = Linear_Regression
-		elif model == 'second_order' :
-			self.model = lambda : Polynomial_Regression( 2 )
+			self.model = lambda : Linear_Regression( **model_options )
+		elif model == 'polynomial' :
+			self.model = lambda : Polynomial_Regression( **model_options )
 		else :
 			self.model = model
 
@@ -91,21 +106,21 @@ class Oblique_Model_Tree :
 		self._root_node = None
 
 
-	def _get_split_distribution( self, X, split_coefs ) :
+	def _get_split_distribution( self, X, split_params ) :
 		if X.ndim == 1 : X = X[np.newaxis,:]
-		assert len( split_coefs ) == X.shape[1] + 1
+		assert len( split_params ) == X.shape[1] + 1
 
-		boundary = split_coefs[0]*X[:,0] - split_coefs[-1]
+		boundary = split_params[0]*X[:,0] - split_params[-1]
 		for i in range( 1, X.shape[1] ) :
-			boundary += split_coefs[i]*X[:,i]
+			boundary += split_params[i]*X[:,i]
 
 		return boundary >= 0
 
 
-	def _divide_and_fit( self, X, y, split_coefs, margin_coef=0.01 ) :
+	def _divide_and_fit( self, X, y, split_params, margin_coef=0.01 ) :
 		assert len( y ) == X.shape[0]
 
-		distribution = self._get_split_distribution( X, split_coefs )
+		distribution = self._get_split_distribution( X, split_params )
 
 		X_1 = X[distribution]
 		y_1 = y[distribution]
@@ -116,7 +131,7 @@ class Oblique_Model_Tree :
 		# If there is not enough samples on one side of the split, return the squared distance from the center of the samples:
 		if len( y_1 ) < self.min_samples_leaf or len( y_2 ) < self.min_samples_leaf :
 			data_center = np.mean( X, 0 )
-			nosplit_loss = ( ( data_center.dot( split_coefs[:-1] ) - split_coefs[-1] )/np.linalg.norm( split_coefs[:-1] ) )**2
+			nosplit_loss = ( ( data_center.dot( split_params[:-1] ) - split_params[-1] )/np.linalg.norm( split_params[:-1] ) )**2
 			results = { 'success': False,
 						'split_loss': nosplit_loss,
 						'margin_penalty': 0 }
@@ -136,7 +151,7 @@ class Oblique_Model_Tree :
 		split_loss = ( len( y_1 )*loss_1 + len( y_2 )*loss_2 )/len( y )
 
 		# Add the maximization of the margin:
-		margin_distance = min( abs( X.dot( split_coefs[:-1] ) - split_coefs[-1] ) )/np.linalg.norm( split_coefs[:-1] )
+		margin_distance = min( abs( X.dot( split_params[:-1] ) - split_params[-1] ) )/np.linalg.norm( split_params[:-1] )
 		margin_penalty = -margin_coef*margin_distance
 
 		results = { 'success': True,
@@ -159,8 +174,8 @@ class Oblique_Model_Tree :
 	def _split_recursively( self, node, X, y, verbose=1, loss=None ) :
 
 		if verbose :
-			print( '  %s\u21B3Depth %i: n samples: %i%s'
-			% ( '    '*node['depth'], node['depth'], len( y ), ( ' -- Model loss: %g' % loss ) if loss is not None else '' ) )
+			print( '  %s\u21B3Depth %i: n samples: %i%s' %
+			( '    '*node['depth'], node['depth'], len( y ), ( ' -- Model loss: %g' % loss ) if loss is not None else '' ) )
 
 		if node['depth'] >= self.max_depth or len( y ) < 2*self.min_samples_leaf :
 			if loss is None :
@@ -169,8 +184,8 @@ class Oblique_Model_Tree :
 				y_pred = node['model'].predict( X )
 				loss = mean_squared_error( y, y_pred )
 			if verbose :
-				print( '  %s*Terminal (%s)%s'
-				% ( '    '*node['depth'], ( 'max depth' if node['depth'] >= self.max_depth else 'sample limit' ), self._print_model_coefs( node['model'] ) ) )
+				print( '  %s*Terminal (%s)%s' %
+				( '    '*node['depth'], ( 'max depth' if node['depth'] >= self.max_depth else 'sample limit' ), self._print_model_params( node['model'] ) ) )
 			return
 
 		def cost_function( v ) :
@@ -178,18 +193,19 @@ class Oblique_Model_Tree :
 			return results['split_loss'] + results['margin_penalty']
 
 		# Search for the optimal split:
-		split_coefs = self.split_search( X, cost_function, verbose > 1, 3 + 4*node['depth'] )
+		split_params = self.split_search( X, cost_function, verbose > 1, 3 + 4*node['depth'] )
 
 		# Get the data and models from the optimal split:
-		results = self._divide_and_fit( X, y, split_coefs )
+		results = self._divide_and_fit( X, y, split_params )
 
 		if results['success'] :
 			if verbose :
-				print( '  %s Split loss: %g -- Margin penalty: %g%s'
-				% ( '    '*node['depth'], results['split_loss'], results['margin_penalty'], ( ' -- Split parameters: %s' % split_coefs ) if verbose > 2 else '' ) )
+				print( '  %s Split loss: %g -- Margin penalty: %g%s' %
+				( '    '*node['depth'], results['split_loss'], results['margin_penalty'], ( ' -- Split parameters: %s' % split_params ) if verbose > 2 else '' ) )
 
 			node['terminal'] = False
-			node['split_coefs'] = split_coefs
+			node['split_params'] = split_params
+			node['model'] = None # Free the model resources
 
 			node['children'] = []
 			for child in range( 2 ) :
@@ -198,23 +214,23 @@ class Oblique_Model_Tree :
 					self._split_recursively( node['children'][child], results['X'][child], results['y'][child], verbose, results['model_losses'][child] )
 
 				elif verbose :
-					print( '  %s\u21B3Depth %i: n samples: %i -- Model loss: %g'
-					% ( '    '*( node['depth'] + 1 ), node['depth'] + 1, len( results['y'][child] ), results['model_losses'][child] ) )
-					print( '  %s*Terminal (loss tol)%s'
-					% ( '    '*( node['depth'] + 1 ), self._print_model_coefs( results['models'][child] ) ) )
+					print( '  %s\u21B3Depth %i: n samples: %i -- Model loss: %g' %
+					( '    '*( node['depth'] + 1 ), node['depth'] + 1, len( results['y'][child] ), results['model_losses'][child] ) )
+					print( '  %s*Terminal (loss tol)%s' %
+					( '    '*( node['depth'] + 1 ), self._print_model_params( results['models'][child] ) ) )
 
 		elif verbose :
-			print( '  %s Could not find a proper split! -- Split loss: %g%s'
-			% ( '    '*node['depth'], results['split_loss'], self._print_model_coefs( node['model'] ) ) )
+			print( '  %s Could not find a proper split! -- Split loss: %g%s' %
+			( '    '*node['depth'], results['split_loss'], self._print_model_params( node['model'] ) ) )
 
 
 	#def _print_terminal_node( self, depth, n_samples, loss=None, model=None ) :
 		#return ''
 
 
-	def _print_model_coefs( self, model ) :
+	def _print_model_params( self, model ) :
 		try :
-			return ( ' -- Model parameters: %s' % model.get_coefs() ) if self.verbose > 2 else ''
+			return ( ' -- Model parameters: %s' % np.array( model.get_params() ) ) if self.verbose > 2 else ''
 		except AttributeError :
 			return ''
 
@@ -222,8 +238,8 @@ class Oblique_Model_Tree :
 	def fit( self, X, y, verbose=1 ) :
 
 		if verbose :
-			print( 'Oblique Model Tree -- max depth: %i -- min samples leaf: %i -- loss tol: %s -- margin coef: %g'
-			% ( self.max_depth, self.min_samples_leaf, ( '%g' % self.loss_tol ) if self.loss_tol is not None else 'None', self.margin_coef ) )
+			print( self.__str__() )
+			print( 'Model: %s' % str( self.model() ) )
 
 		self._root_node = self._create_node()
 		self._split_recursively( self._root_node, X, y, verbose )
@@ -240,7 +256,7 @@ class Oblique_Model_Tree :
 			if x.ndim == 1 : x = x[np.newaxis,:]
 			return node['model'].predict( x )
 
-		side = 0 if self._get_split_distribution( x, node['split_coefs'] ) else 1
+		side = 0 if self._get_split_distribution( x, node['split_params'] ) else 1
 		return self._traverse_nodes_and_predict( node['children'][side], x, verbose )
 
 
@@ -251,20 +267,65 @@ class Oblique_Model_Tree :
 			return np.hstack([ self._traverse_nodes_and_predict( self._root_node, x, verbose ) for x in X ])
 
 
-	def _traverse_nodes_and_get_model_coefs( self, node ):
+	def _traverse_nodes_and_collect_params( self, node, parent_number=None, tree_params={} ):
+		self._node_count += 1
+		node_info = 'Node %i%s' % ( self._node_count, ( ' at depth %i, child of node %i' % ( node['depth'], parent_number ) ) if parent_number is not None else ', root' )
+		tree_params[self._node_count] = { 'info': node_info }
 		if node['terminal'] :
-			return [ node["model"].get_coefs() ]
+			tree_params[self._node_count]['terminal'] = True
+			tree_params[self._node_count]['model params'] = node['model'].get_params()
+			return tree_params
 		else :
-			coef_list = []
+			tree_params[self._node_count]['terminal'] = False
+			tree_params[self._node_count]['split params'] = node['split_params'].tolist()
+			node_number = self._node_count
 			for child in range( 2 ) :
-				coef_list.extend( self._traverse_nodes_and_get_model_coefs( node["children"][child] ) )
-			return coef_list
+				self._traverse_nodes_and_collect_params( node['children'][child], node_number, tree_params )
+			return tree_params
 
 
-	def get_model_coefs( self ) :
+	def get_tree_params( self ) :
 		if self._root_node is not None :
-			return self._traverse_nodes_and_get_model_coefs( self._root_node )
+			self._node_count = 0
+			return self._traverse_nodes_and_collect_params( self._root_node )
 		else :
 			return None
+
+
+	def _set_params_recursively( self, node, tree_params ):
+		self._node_count += 1
+		if tree_params[self._node_count]['terminal'] :
+			node['model'] = self.model()
+			node['model'].set_params( tree_params[self._node_count]['model params'] )
+		else :
+			node['terminal'] = False
+			node['split_params'] = tree_params[self._node_count]['split params']
+			node['children'] = {}
+			for child in range( 2 ) :
+				node['children'][child] = self._create_node( node['depth'] + 1 )
+				self._set_params_recursively( node['children'][child], tree_params )
+
+
+	def set_tree_params( self, tree_params ) :
+		self._node_count = 0
+		self._root_node = self._create_node()
+		self._set_params_recursively( self._root_node, tree_params )
+
+
+	def save_tree_params( self, filename ) :
+		with open( filename + '.yaml', 'w') as f :
+			f.write( '# %s\n' % self.__str__() )
+			f.write( '# Model: %s\n' % str( self.model() ) )
+			yaml.dump( self.get_tree_params(), f, sort_keys=False )
+
+
+	def load_tree_params( self, filename ) :
+		with open( filename + '.yaml', 'r') as f :
+			self.set_tree_params( yaml.load( f, Loader=yaml.FullLoader ) )
+
+
+	def __str__( self ) :
+		return 'Oblique Model Tree (max depth: %i, min samples leaf: %i, loss tol: %s, margin coef: %g)' %\
+		( self.max_depth, self.min_samples_leaf, ( '%g' % self.loss_tol ) if self.loss_tol is not None else 'None', self.margin_coef )
 
 
