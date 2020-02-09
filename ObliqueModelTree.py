@@ -250,21 +250,32 @@ class Oblique_Model_Tree :
 			print( 'Final loss: %g' % loss )
 
 
-	def _traverse_nodes_and_predict( self, node, x, verbose=0 ) :
+	def _traverse_nodes_and_predict( self, node, x, return_node_id=False ) :
 
 		if node['terminal'] :
 			if x.ndim == 1 : x = x[np.newaxis,:]
-			return node['model'].predict( x )
+			if return_node_id :
+				return node['model'].predict( x ), node['id']
+			else :
+				return node['model'].predict( x )
 
 		side = 0 if self._get_split_distribution( x, node['split_params'] ) else 1
-		return self._traverse_nodes_and_predict( node['children'][side], x, verbose )
+		return self._traverse_nodes_and_predict( node['children'][side], x, return_node_id )
 
 
-	def predict( self, X, verbose=0 ) :
+	def predict( self, X, return_node_id=False ) :
 		if X.ndim == 1 :
-			return self._traverse_nodes_and_predict( self._root_node, X[np.newaxis,:], verbose ).item()
+			ret = self._traverse_nodes_and_predict( self._root_node, X[np.newaxis,:], return_node_id )
+			if return_node_id :
+				return ret[0].item(), ret[1]
+			else :
+				return ret.item()
 		else :
-			return np.hstack([ self._traverse_nodes_and_predict( self._root_node, x, verbose ) for x in X ])
+			ret_list = [ self._traverse_nodes_and_predict( self._root_node, x, return_node_id ) for x in X ]
+			if return_node_id :
+				return np.hstack( [ ret[0] for ret in ret_list ] ), [ ret[1] for ret in ret_list ]
+			else :
+				return np.hstack( ret_list )
 
 
 	def _traverse_nodes_and_collect_params( self, node, parent_id=None, tree_params={} ):
