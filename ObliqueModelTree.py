@@ -73,7 +73,7 @@ def CMA_Search( X, cost_function, verbose=False, indentation=0 ) :
 		es.optimize( cost_function )
 
 	if verbose :
-		print( '%saCMA-ES results -> n iter: %i -- n eval: %i -- termination status: %s' % ( ' '*indentation, es.result.iterations, es.result.evaluations, es.stop() ) )
+		print( '%saCMA-ES results -> %i iterations, %i evaluations, termination status: %s' % ( ' '*indentation, es.result.iterations, es.result.evaluations, es.stop() ) )
 		#es.result_pretty()
 
 	coef_max = max( abs( es.result.xbest ) )*( -1 if es.result.xbest[0] < 0 else 1 )
@@ -179,10 +179,7 @@ class Oblique_Model_Tree :
 	
 	def _split_recursively( self, node, X, y, verbose=1, loss=None ) :
 
-		if verbose :
-			print( '  %s\u21B3Depth %i: n samples: %i%s' %
-			( '    '*node['depth'], node['depth'], len( y ), ( ' -- Model loss: %g' % loss ) if loss is not None else '' ) )
-
+		# If the maximum depth is reached or there is not enough samples left:
 		if node['depth'] >= self.max_depth or len( y ) < 2*self.min_samples_leaf :
 			if loss is None :
 				node['model'] = self.model()
@@ -190,24 +187,27 @@ class Oblique_Model_Tree :
 				y_pred = node['model'].predict( X )
 				loss = mean_squared_error( y, y_pred )
 			if verbose :
-				print( '  %s*Terminal (%s)%s' %
-				( '    '*node['depth'], ( 'max depth' if node['depth'] >= self.max_depth else 'sample limit' ), self._print_model_params( node['model'] ) ) )
+				self._print_terminal_node( node['id'], node['depth'], 'max depth' if node['depth'] >= self.max_depth else 'samp limit', len( y ), loss )
 			return
 
+		# Declaration of the cost function for the split:
 		def cost_function( v ) :
 			results = self._divide_and_fit( X, y, v )
 			return results['split_loss'] + results['margin_penalty']
 
 		# Search for the optimal split:
-		split_params = self.split_search( X, cost_function, verbose > 1, 3 + 4*node['depth'] )
+		split_params = self.split_search( X, cost_function, verbose > 1, 2 + 4*node['depth'] )
 
 		# Get the data and models from the optimal split:
 		results = self._divide_and_fit( X, y, split_params )
 
 		if results['success'] :
 			if verbose :
-				print( '  %s Split loss: %g -- Margin penalty: %g%s' %
-				( '    '*node['depth'], results['split_loss'], results['margin_penalty'], ( ' -- Split parameters: %s' % split_params ) if verbose > 2 else '' ) )
+				# Proportion of samples in each split:
+				prop1 = len( results['y'][0] )/len( y )*100
+				prop2 = len( results['y'][1] )/len( y )*100
+				print( '  %s\u21B3Split node (%i) at depth %i (%.f%%/%.f%% of %i samples, split loss: %g, margin penalty: %g)'
+				% ( '    '*node['depth'], node['id'], node['depth'], prop1, prop2, len( y ), results['split_loss'], results['margin_penalty'] ) )
 
 			node['terminal'] = False
 			node['split_params'] = split_params
@@ -216,36 +216,30 @@ class Oblique_Model_Tree :
 			node['children'] = []
 			for child in range( 2 ) :
 				node['children'].append( self._create_node( node['depth'] + 1, results['models'][child] ) )
+
+				# If the loss is not below the tolerance:
 				if self.loss_tol is None or results['model_losses'][child] > self.loss_tol :
 					self._split_recursively( node['children'][child], results['X'][child], results['y'][child], verbose, results['model_losses'][child] )
 
 				elif verbose :
-					print( '  %s\u21B3Depth %i: n samples: %i -- Model loss: %g' %
-					( '    '*( node['depth'] + 1 ), node['depth'] + 1, len( results['y'][child] ), results['model_losses'][child] ) )
-					print( '  %s*Terminal (loss tol)%s' %
-					( '    '*( node['depth'] + 1 ), self._print_model_params( results['models'][child] ) ) )
+					self._print_terminal_node( node['children'][child]['id'], node['depth'] + 1, 'loss tol', len( results['y'][child] ), results['model_losses'][child] )
 
 		elif verbose :
-			print( '  %s Could not find a proper split! -- Split loss: %g%s' %
-			( '    '*node['depth'], results['split_loss'], self._print_model_params( node['model'] ) ) )
+			print( '  %s\u21B3Node (%i) at depth %i: Could not find a suitable split! (%i samples, split loss: %g)'
+			% ( '    '*node['depth'], node['id'], node['depth'], len( y ), results['split_loss'] ) )
 
 
-	#def _print_terminal_node( self, depth, n_samples, loss=None, model=None ) :
-		#return ''
-
-
-	def _print_model_params( self, model ) :
-		try :
-			return ( ' -- Model parameters: %s' % np.array( model.get_params() ) ) if self.verbose > 2 else ''
-		except AttributeError :
-			return ''
+	def _print_terminal_node( self, node_id, depth, termination_str, n_samples, loss ) :
+		print( '  %s\u21B3Terminal node (%i) at depth %i (%s)%s %*i samples, model loss: %g'
+		% ( '    '*depth, node_id, depth, termination_str, ' '*abs( 10 - len( termination_str ) ), self._nsamples_len, n_samples, loss ) )
 
 
 	def fit( self, X, y, verbose=1 ) :
-
+		
 		if verbose :
 			print( self.__str__() )
 			print( 'Model: %s' % str( self.model() ) )
+			self._nsamples_len = len( str( len( y ) ) )
 
 		self._root_node = self._create_node()
 		self._split_recursively( self._root_node, X, y, verbose )
@@ -273,8 +267,8 @@ class Oblique_Model_Tree :
 			return np.hstack([ self._traverse_nodes_and_predict( self._root_node, x, verbose ) for x in X ])
 
 
-	def _traverse_nodes_and_collect_params( self, node, parent_number=None, tree_params={} ):
-		node_info = 'Node %i%s' % ( node['id'], ( ' at depth %i, child of node %i' % ( node['depth'], parent_number ) ) if parent_number is not None else ', root' )
+	def _traverse_nodes_and_collect_params( self, node, parent_id=None, tree_params={} ):
+		node_info = 'Node %i%s' % ( node['id'], ( ' at depth %i, child of node %i' % ( node['depth'], parent_id ) ) if parent_id is not None else ', root' )
 		tree_params[node['id']] = { 'info': node_info }
 		if node['terminal'] :
 			tree_params[node['id']]['terminal'] = True
