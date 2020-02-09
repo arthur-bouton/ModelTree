@@ -33,7 +33,7 @@ class Linear_Regression :
 		self.model.n_iter_ = 0
 
 	def __str__( self ) :
-		return 'Linear regression%s' % ( ' with a L1 regularization coefficient of %g' % self._L1_reg ) if self._L1_reg is not None else ''
+		return 'Linear regression%s' % ( ' with a L1 regularization coefficient of %g' % self._L1_reg if self._L1_reg is not None else '' )
 
 
 class Polynomial_Regression( Linear_Regression ) :
@@ -165,7 +165,13 @@ class Oblique_Model_Tree :
 	
 
 	def _create_node( self, depth=0, model=None ) :
+		if depth == 0 :
+			self._node_count = 1
+		else :
+			self._node_count += 1
+
 		node = { 'depth': depth,
+				 'id': self._node_count,
 				 'model': model,
 				 'terminal': True }
 		return node
@@ -268,38 +274,34 @@ class Oblique_Model_Tree :
 
 
 	def _traverse_nodes_and_collect_params( self, node, parent_number=None, tree_params={} ):
-		self._node_count += 1
-		node_info = 'Node %i%s' % ( self._node_count, ( ' at depth %i, child of node %i' % ( node['depth'], parent_number ) ) if parent_number is not None else ', root' )
-		tree_params[self._node_count] = { 'info': node_info }
+		node_info = 'Node %i%s' % ( node['id'], ( ' at depth %i, child of node %i' % ( node['depth'], parent_number ) ) if parent_number is not None else ', root' )
+		tree_params[node['id']] = { 'info': node_info }
 		if node['terminal'] :
-			tree_params[self._node_count]['terminal'] = True
-			tree_params[self._node_count]['model params'] = node['model'].get_params()
+			tree_params[node['id']]['terminal'] = True
+			tree_params[node['id']]['model params'] = node['model'].get_params()
 			return tree_params
 		else :
-			tree_params[self._node_count]['terminal'] = False
-			tree_params[self._node_count]['split params'] = node['split_params'].tolist()
-			node_number = self._node_count
+			tree_params[node['id']]['terminal'] = False
+			tree_params[node['id']]['split params'] = node['split_params'].tolist()
 			for child in range( 2 ) :
-				self._traverse_nodes_and_collect_params( node['children'][child], node_number, tree_params )
+				self._traverse_nodes_and_collect_params( node['children'][child], node['id'], tree_params )
 			return tree_params
 
 
 	def get_tree_params( self ) :
 		if self._root_node is not None :
-			self._node_count = 0
 			return self._traverse_nodes_and_collect_params( self._root_node )
 		else :
 			return None
 
 
 	def _set_params_recursively( self, node, tree_params ):
-		self._node_count += 1
-		if tree_params[self._node_count]['terminal'] :
+		if tree_params[node['id']]['terminal'] :
 			node['model'] = self.model()
-			node['model'].set_params( tree_params[self._node_count]['model params'] )
+			node['model'].set_params( tree_params[node['id']]['model params'] )
 		else :
 			node['terminal'] = False
-			node['split_params'] = tree_params[self._node_count]['split params']
+			node['split_params'] = tree_params[node['id']]['split params']
 			node['children'] = {}
 			for child in range( 2 ) :
 				node['children'][child] = self._create_node( node['depth'] + 1 )
@@ -307,7 +309,6 @@ class Oblique_Model_Tree :
 
 
 	def set_tree_params( self, tree_params ) :
-		self._node_count = 0
 		self._root_node = self._create_node()
 		self._set_params_recursively( self._root_node, tree_params )
 
