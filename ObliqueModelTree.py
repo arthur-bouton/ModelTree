@@ -247,7 +247,8 @@ class Oblique_Model_Tree :
 		if verbose :
 			y_pred = self.predict( X )
 			loss = mean_squared_error( y, y_pred )
-			print( 'Final loss: %g' % loss )
+			print( 'Final loss: %g, number of nodes: %i, number of non-zero parameters: %i, total number of parameters: %i'
+			% ( loss, self._node_count, *self.get_number_of_params() ) )
 
 
 	def _traverse_nodes_and_predict( self, node, x, return_node_id=False ) :
@@ -264,6 +265,9 @@ class Oblique_Model_Tree :
 
 
 	def predict( self, X, return_node_id=False ) :
+		if self._root_node is None :
+			raise RuntimeError( 'The tree has not been built yet' )
+
 		if X.ndim == 1 :
 			ret = self._traverse_nodes_and_predict( self._root_node, X[np.newaxis,:], return_node_id )
 			if return_node_id :
@@ -278,7 +282,7 @@ class Oblique_Model_Tree :
 				return np.hstack( ret_list )
 
 
-	def _traverse_nodes_and_collect_params( self, node, parent_id=None, tree_params={} ):
+	def _traverse_nodes_and_collect_params( self, node, parent_id=None, tree_params={} ) :
 		node_info = 'Node %i%s' % ( node['id'], ( ' at depth %i, child of node %i' % ( node['depth'], parent_id ) ) if parent_id is not None else ', root' )
 		tree_params[node['id']] = { 'info': node_info }
 		if node['terminal'] :
@@ -294,13 +298,39 @@ class Oblique_Model_Tree :
 
 
 	def get_tree_params( self ) :
-		if self._root_node is not None :
-			return self._traverse_nodes_and_collect_params( self._root_node )
-		else :
+		'''Return all node parameters describing the tree as a dictionary'''
+		if self._root_node is None :
 			return None
 
+		return self._traverse_nodes_and_collect_params( self._root_node )
 
-	def _set_params_recursively( self, node, tree_params ):
+
+	def _traverse_nodes_and_count_params( self, node ) :
+		if node['terminal'] :
+			params = node['model'].get_params()
+			nonzero = sum( x != 0 for x in params )
+			total = len( params )
+			return nonzero, total
+		else :
+			params = node['split_params'].tolist()
+			nonzero = sum( x != 0 for x in params )
+			total = len( params )
+			for child in range( 2 ) :
+				n, t = self._traverse_nodes_and_count_params( node['children'][child] )
+				nonzero += n
+				total += t
+			return nonzero, total
+
+
+	def get_number_of_params( self ) :
+		'''Return a tuple with first the number of non-zero parameters and second the total number of parameters'''
+		if self._root_node is None :
+			return 0
+
+		return self._traverse_nodes_and_count_params( self._root_node )
+
+
+	def _set_params_recursively( self, node, tree_params ) :
 		if tree_params[node['id']]['terminal'] :
 			node['model'] = self.model()
 			node['model'].set_params( tree_params[node['id']]['model params'] )
@@ -314,6 +344,7 @@ class Oblique_Model_Tree :
 
 
 	def set_tree_params( self, tree_params ) :
+		'''Build the tree according to a dictionary with the same structure as returned by get_tree_params()'''
 		self._root_node = self._create_node()
 		self._set_params_recursively( self._root_node, tree_params )
 
