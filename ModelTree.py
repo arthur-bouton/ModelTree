@@ -6,7 +6,7 @@ import warnings
 import yaml
 
 
-class Linear_Regression :
+class Linear_regression :
 
 	def __init__( self, L1_reg=None ) :
 		self._L1_reg = L1_reg
@@ -36,7 +36,7 @@ class Linear_Regression :
 		return 'Linear regression%s' % ( ' with a L1 regularization coefficient of %g' % self._L1_reg if self._L1_reg is not None else '' )
 
 
-class Polynomial_Regression( Linear_Regression ) :
+class Polynomial_regression( Linear_regression ) :
 
 	def __init__( self, degree=2, L1_reg=None ) :
 		self._degree = degree
@@ -44,7 +44,7 @@ class Polynomial_Regression( Linear_Regression ) :
 		from sklearn.preprocessing import PolynomialFeatures
 		self.preprocessing = PolynomialFeatures( degree, include_bias=False )
 
-		Linear_Regression.__init__( self, L1_reg )
+		Linear_regression.__init__( self, L1_reg )
 
 	def fit( self, X, y ) :
 		X_poly = self.preprocessing.fit_transform( X ) 
@@ -58,16 +58,16 @@ class Polynomial_Regression( Linear_Regression ) :
 		return 'Polynomial regression of degree %i%s' % ( self._degree, ( ' with a L1 regularization coefficient of %g' % self._L1_reg ) if self._L1_reg is not None else '' )
 
 
-def CMA_Search( X, cost_function, verbose=False, indentation=0 ) :
+def CMA_search( X, cost_function, verbose=False, indentation=0 ) :
 
 	data_center = np.mean( X, 0 )
 	data_maxvar = np.max( np.var( X, 0 ) )
 
-	xi = np.random.randn( X.shape[1] )
-	xi = np.append( xi, xi.dot( data_center ) )
+	x0 = np.random.randn( X.shape[1] )
+	x0 = np.append( x0, x0.dot( data_center ) )
 
-	#es = cma.CMAEvolutionStrategy( xi, data_maxvar, { 'verbose': 0, 'verb_log': 0, 'verb_disp': 0 } )
-	es = cma.CMAEvolutionStrategy( xi, data_maxvar, { 'verbose': 0, 'verb_log': 0, 'verb_disp': 0, 'tolconditioncov': False } )
+	#es = cma.CMAEvolutionStrategy( x0, data_maxvar, { 'verbose': 0, 'verb_log': 0, 'verb_disp': 0 } )
+	es = cma.CMAEvolutionStrategy( x0, data_maxvar, { 'verbose': 0, 'verb_log': 0, 'verb_disp': 0, 'tolconditioncov': False } )
 	with warnings.catch_warnings() :
 		warnings.simplefilter( "ignore" )
 		es.optimize( cost_function )
@@ -76,28 +76,26 @@ def CMA_Search( X, cost_function, verbose=False, indentation=0 ) :
 		print( '%saCMA-ES results -> %i iterations, %i evaluations, termination status: %s' % ( ' '*indentation, es.result.iterations, es.result.evaluations, es.stop() ) )
 		#es.result_pretty()
 
-	coef_max = max( abs( es.result.xbest ) )*( -1 if es.result.xbest[0] < 0 else 1 )
-	opti_params = es.result.xbest/coef_max
-
-	return opti_params
+	return es.result.xbest
 
 
-class Oblique_Model_Tree :
+class Model_tree :
 
-	def __init__( self, max_depth=5, min_samples_leaf=1, model='linear', loss_tol=None, margin_coef=0.01, split_search='cma-es', **model_options ) :
+	def __init__( self, oblique=True, max_depth=5, min_samples_leaf=1, model='linear', loss_tol=None, split_search='cma-es', margin_coef=0.01, **model_options ) :
 
 		if model == 'linear' :
-			self.model = lambda : Linear_Regression( **model_options )
+			self.model = lambda : Linear_regression( **model_options )
 		elif model == 'polynomial' :
-			self.model = lambda : Polynomial_Regression( **model_options )
+			self.model = lambda : Polynomial_regression( **model_options )
 		else :
 			self.model = model
 
 		if split_search == 'cma-es' :
-			self.split_search = CMA_Search
+			self.split_search = CMA_search
 		else :
 			self.split_search = split_search
 
+		self.oblique = oblique
 		self.max_depth = max_depth
 		self.min_samples_leaf = min_samples_leaf
 		self.loss_tol = loss_tol
@@ -108,11 +106,18 @@ class Oblique_Model_Tree :
 
 	def _get_split_distribution( self, X, split_params ) :
 		if X.ndim == 1 : X = X[np.newaxis,:]
-		assert len( split_params ) == X.shape[1] + 1
 
-		boundary = split_params[0]*X[:,0] - split_params[-1]
-		for i in range( 1, X.shape[1] ) :
-			boundary += split_params[i]*X[:,i]
+		if self.oblique :
+			assert len( split_params ) == X.shape[1] + 1
+
+			boundary = split_params[0]*X[:,0] - split_params[-1]
+			for i in range( 1, X.shape[1] ) :
+				boundary += split_params[i]*X[:,i]
+
+		else :
+			assert len( split_params ) == 2 and isinstance( split_params[0], int )
+
+			boundary = X[:,split_params[0]] - split_params[1]
 
 		return boundary >= 0
 
@@ -130,8 +135,10 @@ class Oblique_Model_Tree :
 
 		# If there is not enough samples on one side of the split, return the squared distance from the center of the samples:
 		if len( y_1 ) < self.min_samples_leaf or len( y_2 ) < self.min_samples_leaf :
-			data_center = np.mean( X, 0 )
-			nosplit_loss = ( ( data_center.dot( split_params[:-1] ) - split_params[-1] )/np.linalg.norm( split_params[:-1] ) )**2
+			if self.oblique :
+				nosplit_loss = ( ( np.mean( X, 0 ).dot( split_params[:-1] ) - split_params[-1] )/np.linalg.norm( split_params[:-1] ) )**2
+			else :
+				nosplit_loss = ( np.mean( X[:,split_params[0]] ) - split_params[1] )**2
 			results = { 'success': False,
 						'split_loss': nosplit_loss,
 						'margin_penalty': 0 }
@@ -151,7 +158,11 @@ class Oblique_Model_Tree :
 		split_loss = ( len( y_1 )*loss_1 + len( y_2 )*loss_2 )/len( y )
 
 		# Add the maximization of the margin:
-		margin_distance = min( abs( X.dot( split_params[:-1] ) - split_params[-1] ) )/np.linalg.norm( split_params[:-1] )
+		if self.oblique :
+			margin_distance = min( abs( X.dot( split_params[:-1] ) - split_params[-1] ) )/np.linalg.norm( split_params[:-1] )
+		else :
+			#margin_distance = min( abs( X[:,split_params[0]] - split_params[1] ) )
+			margin_distance = 0
 		margin_penalty = -margin_coef*margin_distance
 
 		results = { 'success': True,
@@ -176,7 +187,7 @@ class Oblique_Model_Tree :
 				 'terminal': True }
 		return node
 
-	
+
 	def _split_recursively( self, node, X, y, verbose=1, loss=None ) :
 
 		# If the maximum depth is reached or there is not enough samples left:
@@ -190,13 +201,31 @@ class Oblique_Model_Tree :
 				self._print_terminal_node( node['id'], node['depth'], 'max depth' if node['depth'] >= self.max_depth else 'samp limit', len( y ), loss )
 			return
 
-		# Declaration of the cost function for the split:
-		def cost_function( v ) :
-			results = self._divide_and_fit( X, y, v )
-			return results['split_loss'] + results['margin_penalty']
+		if self.oblique :
+			# Declaration of the cost function for the split:
+			def cost_function( p ) :
+				results = self._divide_and_fit( X, y, p )
+				return results['split_loss'] + results['margin_penalty']
 
-		# Search for the optimal split:
-		split_params = self.split_search( X, cost_function, verbose > 1, 2 + 4*node['depth'] )
+			# Search for the optimal split:
+			split_params = self.split_search( X, cost_function, verbose > 1, 2 + 4*node['depth'] )
+
+			# Normalize by the highest coefficient and impose the first coefficient to be positive:
+			coef_max = max( np.abs( split_params ) )*( -1 if split_params[0] < 0 else 1 )
+			split_params = ( np.array( split_params )/coef_max ).tolist()
+
+		else :
+			for feature in range( X.shape[1] ) :
+				# Identify all possible thresholds in the middle of each successive pair of samples:
+				feature_values = np.unique( X[:,feature] ).tolist()
+				threshold_list = [ ( feature_values[i+1] + feature_values[i] )/2 for i in range( self.min_samples_leaf - 1, len( feature_values ) - self.min_samples_leaf ) ]
+
+				# Record the best split seen:
+				for threshold in threshold_list :
+					results = self._divide_and_fit( X, y, ( feature, threshold ) )
+					if 'best_split_loss' not in locals() or results['split_loss'] < best_split_loss :
+						best_split_loss = results['split_loss']
+						split_params = [ feature, threshold ]
 
 		# Get the data and models from the optimal split:
 		results = self._divide_and_fit( X, y, split_params )
@@ -206,8 +235,9 @@ class Oblique_Model_Tree :
 				# Proportion of samples in each split:
 				prop1 = len( results['y'][0] )/len( y )*100
 				prop2 = len( results['y'][1] )/len( y )*100
-				print( '  %s\u21B3Split node (%i) at depth %i (%.f%%/%.f%% of %i samples, split loss: %g, margin penalty: %g)'
-				% ( '    '*node['depth'], node['id'], node['depth'], prop1, prop2, len( y ), results['split_loss'], results['margin_penalty'] ) )
+				print( '  %s\u21B3Split node (%i) at depth %i (%.f%%/%.f%% of %i samples, split loss: %g%s)'
+				% ( '    '*node['depth'], node['id'], node['depth'], prop1, prop2, len( y ), results['split_loss'],
+				    ', margin penalty: %g' % results['margin_penalty'] if self.oblique else ', threshold on feature [%i]: %g' % tuple( split_params ) ) )
 
 			node['terminal'] = False
 			node['split_params'] = split_params
@@ -225,7 +255,7 @@ class Oblique_Model_Tree :
 					self._print_terminal_node( node['children'][child]['id'], node['depth'] + 1, 'loss tol', len( results['y'][child] ), results['model_losses'][child] )
 
 		elif verbose :
-			print( '  %s\u21B3Node (%i) at depth %i: Could not find a suitable split! (%i samples, split loss: %g)'
+			print( '  %s\u21B3/!\ Node (%i) at depth %i: Could not find a suitable split (%i samples, split loss: %g)'
 			% ( '    '*node['depth'], node['id'], node['depth'], len( y ), results['split_loss'] ) )
 
 
@@ -291,9 +321,11 @@ class Oblique_Model_Tree :
 			return tree_params
 		else :
 			tree_params[node['id']]['terminal'] = False
-			tree_params[node['id']]['split params'] = node['split_params'].tolist()
+			tree_params[node['id']]['split params'] = node['split_params']
+
 			for child in range( 2 ) :
 				self._traverse_nodes_and_collect_params( node['children'][child], node['id'], tree_params )
+
 			return tree_params
 
 
@@ -312,13 +344,19 @@ class Oblique_Model_Tree :
 			total = len( params )
 			return nonzero, total
 		else :
-			params = node['split_params'].tolist()
-			nonzero = sum( x != 0 for x in params )
-			total = len( params )
+			params = node['split_params']
+			if self.oblique :
+				nonzero = sum( x != 0 for x in params ) - 1
+				total = len( params ) - 1
+			else :
+				nonzero = 1
+				total = 1
+
 			for child in range( 2 ) :
 				n, t = self._traverse_nodes_and_count_params( node['children'][child] )
 				nonzero += n
 				total += t
+
 			return nonzero, total
 
 
@@ -362,7 +400,7 @@ class Oblique_Model_Tree :
 
 
 	def __str__( self ) :
-		return 'Oblique Model Tree (max depth: %i, min samples leaf: %i, loss tol: %s, margin coef: %g)' %\
-		( self.max_depth, self.min_samples_leaf, ( '%g' % self.loss_tol ) if self.loss_tol is not None else 'None', self.margin_coef )
+		return '%s Model Tree (max depth: %i, min samples leaf: %i, loss tol: %s, margin coef: %g)' %\
+		( 'Oblique' if self.oblique else 'Straight', self.max_depth, self.min_samples_leaf, '%g' % self.loss_tol if self.loss_tol is not None else 'None', self.margin_coef )
 
 
