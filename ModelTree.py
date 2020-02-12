@@ -13,10 +13,10 @@ warnings.filterwarnings( action="ignore", module="sklearn", category=Convergence
 
 class Linear_regression :
 
-	def __init__( self, L1_reg=None ) :
+	def __init__( self, L1_reg=0 ) :
 		self._L1_reg = L1_reg
 
-		if L1_reg is None :
+		if L1_reg == 0 :
 			from sklearn.linear_model import LinearRegression
 			self.model = LinearRegression()
 		else :
@@ -43,7 +43,7 @@ class Linear_regression :
 
 class Polynomial_regression( Linear_regression ) :
 
-	def __init__( self, degree=2, L1_reg=None ) :
+	def __init__( self, degree=2, L1_reg=0 ) :
 		self._degree = degree
 
 		from sklearn.preprocessing import PolynomialFeatures
