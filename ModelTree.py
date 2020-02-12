@@ -2,8 +2,13 @@
 import numpy as np
 from sklearn.metrics import mean_squared_error
 import cma
-import warnings
 import yaml
+from tqdm import tqdm
+import warnings
+
+
+from sklearn.exceptions import ConvergenceWarning
+warnings.filterwarnings( action="ignore", module="sklearn", category=ConvergenceWarning )
 
 
 class Linear_regression :
@@ -81,7 +86,7 @@ def CMA_search( X, cost_function, verbose=False, indentation=0 ) :
 
 class Model_tree :
 
-	def __init__( self, oblique=True, max_depth=5, min_samples_leaf=1, model='linear', loss_tol=None, split_search='cma-es', margin_coef=0.01, **model_options ) :
+	def __init__( self, oblique=True, max_depth=3, node_min_samples=1, model='linear', loss_tol=None, split_search='cma-es', margin_coef=0.01, **model_options ) :
 
 		if model == 'linear' :
 			self.model = lambda : Linear_regression( **model_options )
@@ -97,7 +102,7 @@ class Model_tree :
 
 		self.oblique = oblique
 		self.max_depth = max_depth
-		self.min_samples_leaf = min_samples_leaf
+		self.node_min_samples = node_min_samples
 		self.loss_tol = loss_tol
 		self.margin_coef = margin_coef
 
@@ -134,7 +139,7 @@ class Model_tree :
 		y_2 = y[~distribution]
 
 		# If there is not enough samples on one side of the split, return the squared distance from the center of the samples:
-		if len( y_1 ) < self.min_samples_leaf or len( y_2 ) < self.min_samples_leaf :
+		if len( y_1 ) < self.node_min_samples or len( y_2 ) < self.node_min_samples :
 			if self.oblique :
 				nosplit_loss = ( ( np.mean( X, 0 ).dot( split_params[:-1] ) - split_params[-1] )/np.linalg.norm( split_params[:-1] ) )**2
 			else :
@@ -191,7 +196,7 @@ class Model_tree :
 	def _split_recursively( self, node, X, y, verbose=1, loss=None ) :
 
 		# If the maximum depth is reached or there is not enough samples left:
-		if node['depth'] >= self.max_depth or len( y ) < 2*self.min_samples_leaf :
+		if node['depth'] >= self.max_depth or len( y ) < 2*self.node_min_samples :
 			if loss is None :
 				node['model'] = self.model()
 				node['model'].fit( X, y )
@@ -216,12 +221,13 @@ class Model_tree :
 
 		else :
 			for feature in range( X.shape[1] ) :
-				# Identify all possible thresholds in the middle of each successive pair of samples:
 				feature_values = np.unique( X[:,feature] ).tolist()
-				threshold_list = [ ( feature_values[i+1] + feature_values[i] )/2 for i in range( self.min_samples_leaf - 1, len( feature_values ) - self.min_samples_leaf ) ]
+				# Identify all possible thresholds in the middle of each successive pair of samples:
+				threshold_list = [ ( feature_values[i+1] + feature_values[i] )/2 for i in range( self.node_min_samples - 1, len( feature_values ) - self.node_min_samples ) ]
 
 				# Record the best split seen:
-				for threshold in threshold_list :
+				for threshold in tqdm( threshold_list, desc='Node %i at depth %i, scanning feature [%i/%i]'
+				% ( node['id'], node['depth'], feature, X.shape[1] - 1 ), leave=False, disable=verbose < 1 ) :
 					results = self._divide_and_fit( X, y, ( feature, threshold ) )
 					if 'best_split_loss' not in locals() or results['split_loss'] < best_split_loss :
 						best_split_loss = results['split_loss']
@@ -401,6 +407,6 @@ class Model_tree :
 
 	def __str__( self ) :
 		return '%s Model Tree (max depth: %i, min samples leaf: %i, loss tol: %s, margin coef: %g)' %\
-		( 'Oblique' if self.oblique else 'Straight', self.max_depth, self.min_samples_leaf, '%g' % self.loss_tol if self.loss_tol is not None else 'None', self.margin_coef )
+		( 'Oblique' if self.oblique else 'Straight', self.max_depth, self.node_min_samples, '%g' % self.loss_tol if self.loss_tol is not None else 'None', self.margin_coef )
 
 
