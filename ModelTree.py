@@ -397,11 +397,13 @@ class Model_tree :
 		with open( filename + '.yaml', 'w') as f :
 			f.write( '# %s\n' % self.__str__() )
 			f.write( '# Model: %s\n' % str( self.model() ) )
+			#yaml.dump( self.get_tree_params(), f, default_flow_style=False ) # PyYAML < 5.1
 			yaml.dump( self.get_tree_params(), f, sort_keys=False )
 
 
 	def load_tree_params( self, filename ) :
 		with open( filename + '.yaml', 'r') as f :
+			#self.set_tree_params( yaml.load( f ) ) # PyYAML < 5.1
 			self.set_tree_params( yaml.load( f, Loader=yaml.FullLoader ) )
 
 
