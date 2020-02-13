@@ -38,7 +38,7 @@ class Linear_regression :
 		self.model.n_iter_ = 0
 
 	def __str__( self ) :
-		return 'Linear regression%s' % ( ' with a L1 regularization coefficient of %g' % self._L1_reg if self._L1_reg is not None else '' )
+		return 'Linear regression%s' % ( ' with a L1 regularization coefficient of %g' % self._L1_reg if self._L1_reg != 0 else '' )
 
 
 class Polynomial_regression( Linear_regression ) :
@@ -60,7 +60,7 @@ class Polynomial_regression( Linear_regression ) :
 		return self.model.predict( X_poly )
 
 	def __str__( self ) :
-		return 'Polynomial regression of degree %i%s' % ( self._degree, ( ' with a L1 regularization coefficient of %g' % self._L1_reg ) if self._L1_reg is not None else '' )
+		return 'Polynomial regression of degree %i%s' % ( self._degree, ( ' with a L1 regularization coefficient of %g' % self._L1_reg ) if self._L1_reg != 0 else '' )
 
 
 def CMA_search( X, cost_function, verbose=False, indentation=0 ) :
@@ -221,9 +221,15 @@ class Model_tree :
 
 		else :
 			for feature in range( X.shape[1] ) :
-				feature_values = np.unique( X[:,feature] ).tolist()
-				# Identify all possible thresholds in the middle of each successive pair of samples:
-				threshold_list = [ ( feature_values[i+1] + feature_values[i] )/2 for i in range( self.node_min_samples - 1, len( feature_values ) - self.node_min_samples ) ]
+				# Sort all values taken by the feature:
+				feature_values = sorted( X[:,feature].tolist() )
+				# Trim the limit values according to the minimum number of samples required:
+				if self.node_min_samples > 1 :
+					feature_values = feature_values[self.node_min_samples-1:1-self.node_min_samples]
+				# Remove duplicate values:
+				feature_values = list( set( feature_values ) )
+				# Identify all possible thresholds in the middle of each successive pair of feature values:
+				threshold_list = [ ( feature_values[i+1] + feature_values[i] )/2 for i in range( len( feature_values ) - 1 ) ]
 
 				# Record the best split seen:
 				for threshold in tqdm( threshold_list, desc='Node %i at depth %i, scanning feature [%i/%i]'
@@ -408,7 +414,9 @@ class Model_tree :
 
 
 	def __str__( self ) :
-		return '%s Model Tree (max depth: %i, min samples leaf: %i, loss tol: %s, margin coef: %g)' %\
-		( 'Oblique' if self.oblique else 'Straight', self.max_depth, self.node_min_samples, '%g' % self.loss_tol if self.loss_tol is not None else 'None', self.margin_coef )
+		return '%s Model Tree (max depth: %i, node min samples: %i, loss tol: %s%s)' %\
+		( 'Oblique' if self.oblique else 'Straight', self.max_depth, self.node_min_samples,
+		  '%g' % self.loss_tol if self.loss_tol is not None else 'None',
+		  ', margin coef: %g' % self.margin_coef if self.oblique else '' )
 
 
