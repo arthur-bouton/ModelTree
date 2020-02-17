@@ -45,13 +45,16 @@ void Linear_model_tree<T>::_build_tree_recursively( Node& node, YAML::Node& tree
 
 
 template <class T>
-T Linear_model_tree<T>::_traverse_and_predict( Node& node, std::vector<T>& input )
+T Linear_model_tree<T>::_traverse_and_predict( Node& node, std::vector<T>& input, int& terminal_node_id )
 {
 	if ( ( node.terminal || _oblique ) && input.size() != node.params.size() - 1 )
 		throw std::runtime_error( "The dimension of the input vector does not fit the number of parameters of the node " + std::to_string( node.id ) );
 
 	if ( node.terminal )
+	{
+		terminal_node_id = node.id;
 		return std::inner_product( input.begin(), input.end(), node.params.begin(), node.params.back() );
+	}
 
 	bool side;
 	if ( _oblique )
@@ -59,12 +62,20 @@ T Linear_model_tree<T>::_traverse_and_predict( Node& node, std::vector<T>& input
 	else
 		side = input[node.params[0]] >= node.params[1];
 
-	return _traverse_and_predict( *node.children[ side ? 0 : 1 ], input );
+	return _traverse_and_predict( *node.children[ side ? 0 : 1 ], input, terminal_node_id );
 }
 
 
 template <class T>
 T Linear_model_tree<T>::predict( std::vector<T>& input )
 {
-	return _traverse_and_predict( _root_node, input );
+	int _;
+	return _traverse_and_predict( _root_node, input, _ );
+}
+
+
+template <class T>
+T Linear_model_tree<T>::predict( std::vector<T>& input, int& terminal_node_id )
+{
+	return _traverse_and_predict( _root_node, input, terminal_node_id );
 }

@@ -27,12 +27,13 @@ class Linear_model_tree
 	Linear_model_tree( std::string yaml_file_path, bool oblique = false );
 
 	T predict( std::vector<T>& input );
+	T predict( std::vector<T>& input, int& terminal_node_id );
 
 
 	protected:
 
 	void _build_tree_recursively( Node& node, YAML::Node& tree_params );
-	T _traverse_and_predict( Node& node, std::vector<T>& input );
+	T _traverse_and_predict( Node& node, std::vector<T>& input, int& terminal_node_id );
 
 	bool _oblique;
 	Node _root_node;
