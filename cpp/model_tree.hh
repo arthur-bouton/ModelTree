@@ -13,7 +13,7 @@ class Linear_model_tree
 
 	typedef struct Node
 	{
-		Node() : terminal( true ) { id = ++_node_count; }
+		Node( int id ) : id( id ), terminal( true ) {}
 
 		int id;
 		bool terminal;
@@ -32,12 +32,14 @@ class Linear_model_tree
 
 	protected:
 
+	inline Node* _new_node() { return new Node( ++_node_count ); }
+
 	void _build_tree_recursively( Node& node, const YAML::Node& tree_params );
 	T _traverse_and_predict( const Node& node, const std::vector<T>& input, int& terminal_node_id ) const;
 
 	bool _oblique;
 	Node _root_node;
-	static int _node_count;
+	int _node_count;
 };
 
 

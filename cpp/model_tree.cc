@@ -7,11 +7,8 @@ template class Linear_model_tree<double>;
 
 
 template <class T>
-int Linear_model_tree<T>::_node_count;
-
-
-template <class T>
-Linear_model_tree<T>::Linear_model_tree( const std::string yaml_file_path, const bool oblique ) : _oblique( oblique )
+Linear_model_tree<T>::Linear_model_tree( const std::string yaml_file_path, const bool oblique ) :
+                      _oblique( oblique ), _root_node( Node( 1 ) ), _node_count( 1 )
 {
 	YAML::Node tree_params = YAML::LoadFile( yaml_file_path );
 
@@ -37,7 +34,7 @@ void Linear_model_tree<T>::_build_tree_recursively( Node& node, const YAML::Node
 			                          std::string( " instead of the 2 required for a straight tree" ) );
 		for ( int child : { 0, 1 } )
 		{
-			node.children[child] = node_ptr_t( new Node );
+			node.children[child] = node_ptr_t( _new_node() );
 			_build_tree_recursively( *node.children[child], tree_params );
 		}
 	}
