@@ -24,16 +24,16 @@ class Linear_model_tree
 	typedef std::shared_ptr<Node> node_ptr_t;
 
 
-	Linear_model_tree( std::string yaml_file_path, bool oblique = false );
+	Linear_model_tree( const std::string yaml_file_path, const bool oblique = false );
 
-	T predict( std::vector<T>& input );
-	T predict( std::vector<T>& input, int& terminal_node_id );
+	T predict( const std::vector<T>& input ) const;
+	T predict( const std::vector<T>& input, int& terminal_node_id ) const;
 
 
 	protected:
 
-	void _build_tree_recursively( Node& node, YAML::Node& tree_params );
-	T _traverse_and_predict( Node& node, std::vector<T>& input, int& terminal_node_id );
+	void _build_tree_recursively( Node& node, const YAML::Node& tree_params );
+	T _traverse_and_predict( const Node& node, const std::vector<T>& input, int& terminal_node_id ) const;
 
 	bool _oblique;
 	Node _root_node;
@@ -43,7 +43,7 @@ class Linear_model_tree
 
 // Declaration of an alias following the C++11 standard:
 template <class T>
-using ptr_t = std::shared_ptr<Linear_model_tree<T>>;
+using lmt_ptr_t = std::shared_ptr<Linear_model_tree<T>>;
 
 
 #endif

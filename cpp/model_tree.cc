@@ -11,7 +11,7 @@ int Linear_model_tree<T>::_node_count;
 
 
 template <class T>
-Linear_model_tree<T>::Linear_model_tree( std::string yaml_file_path, bool oblique ) : _oblique( oblique )
+Linear_model_tree<T>::Linear_model_tree( const std::string yaml_file_path, const bool oblique ) : _oblique( oblique )
 {
 	YAML::Node tree_params = YAML::LoadFile( yaml_file_path );
 
@@ -20,7 +20,7 @@ Linear_model_tree<T>::Linear_model_tree( std::string yaml_file_path, bool obliqu
 
 
 template <class T>
-void Linear_model_tree<T>::_build_tree_recursively( Node& node, YAML::Node& tree_params )
+void Linear_model_tree<T>::_build_tree_recursively( Node& node, const YAML::Node& tree_params )
 {
 	int node_id = node.id;
 	if ( tree_params[node_id]["terminal"].as<bool>() )
@@ -45,7 +45,7 @@ void Linear_model_tree<T>::_build_tree_recursively( Node& node, YAML::Node& tree
 
 
 template <class T>
-T Linear_model_tree<T>::_traverse_and_predict( Node& node, std::vector<T>& input, int& terminal_node_id )
+T Linear_model_tree<T>::_traverse_and_predict( const Node& node, const std::vector<T>& input, int& terminal_node_id ) const
 {
 	if ( ( node.terminal || _oblique ) && input.size() != node.params.size() - 1 )
 		throw std::runtime_error( "The dimension of the input vector does not fit the number of parameters of the node " + std::to_string( node.id ) );
@@ -67,7 +67,7 @@ T Linear_model_tree<T>::_traverse_and_predict( Node& node, std::vector<T>& input
 
 
 template <class T>
-T Linear_model_tree<T>::predict( std::vector<T>& input )
+T Linear_model_tree<T>::predict( const std::vector<T>& input ) const
 {
 	int _;
 	return _traverse_and_predict( _root_node, input, _ );
@@ -75,7 +75,7 @@ T Linear_model_tree<T>::predict( std::vector<T>& input )
 
 
 template <class T>
-T Linear_model_tree<T>::predict( std::vector<T>& input, int& terminal_node_id )
+T Linear_model_tree<T>::predict( const std::vector<T>& input, int& terminal_node_id ) const
 {
 	return _traverse_and_predict( _root_node, input, terminal_node_id );
 }
