@@ -43,11 +43,12 @@ class Linear_regression :
 
 class Polynomial_regression( Linear_regression ) :
 
-	def __init__( self, degree=2, L1_reg=0 ) :
+	def __init__( self, degree=2, L1_reg=0, interaction_only=False ) :
 		self._degree = degree
+		self._interaction_only = interaction_only
 
 		from sklearn.preprocessing import PolynomialFeatures
-		self.preprocessing = PolynomialFeatures( degree, include_bias=False )
+		self.preprocessing = PolynomialFeatures( degree, include_bias=False, interaction_only=interaction_only )
 
 		Linear_regression.__init__( self, L1_reg )
 
@@ -60,7 +61,9 @@ class Polynomial_regression( Linear_regression ) :
 		return self.model.predict( X_poly )
 
 	def __str__( self ) :
-		return 'Polynomial regression of degree %i%s' % ( self._degree, ( ' with a L1 regularization coefficient of %g' % self._L1_reg ) if self._L1_reg != 0 else '' )
+		return 'Polynomial regression of degree %i%s%s' % ( self._degree,
+		( ' with a L1 regularization coefficient of %g' % self._L1_reg ) if self._L1_reg != 0 else '',
+		' and only interaction features' if self._interaction_only else '' )
 
 
 def CMA_search( X, cost_function, verbose=False, indentation=0 ) :
