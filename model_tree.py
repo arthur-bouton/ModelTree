@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 import numpy as np
 from sklearn.metrics import mean_squared_error
-import cma
 import yaml
 from tqdm import tqdm
+import cma
 import warnings
 
 
@@ -280,7 +280,10 @@ class Model_tree :
 
 
 	def fit( self, X, y, verbose=1 ) :
-		
+
+		if X.ndim == 1 :
+			X = X[:,np.newaxis]
+
 		if verbose :
 			print( self.__str__() )
 			print( 'Model: %s' % str( self.model() ) )
@@ -310,6 +313,10 @@ class Model_tree :
 
 
 	def predict( self, X, return_node_id=False ) :
+
+		if X.ndim == 1 :
+			X = X[:,np.newaxis]
+
 		if self._root_node is None :
 			raise RuntimeError( 'The tree has not been built yet' )
 
