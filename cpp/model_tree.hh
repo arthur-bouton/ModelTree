@@ -24,10 +24,10 @@ class Linear_model_tree
 	typedef std::shared_ptr<Node> node_ptr_t;
 
 
-	Linear_model_tree( const std::string yaml_file_path, const bool oblique = false );
+	Linear_model_tree( const std::string yaml_file_path, bool oblique = false );
 
 	T predict( const std::vector<T>& input ) const;
-	T predict( const std::vector<T>& input, int& terminal_node_id ) const;
+	virtual T predict( const std::vector<T>& input, int& terminal_node_id ) const;
 
 
 	protected:
@@ -45,7 +45,27 @@ class Linear_model_tree
 
 // Declaration of an alias following the C++11 standard:
 template <class T>
-using lmt_ptr_t = std::shared_ptr<Linear_model_tree<T>>;
+using mt_ptr_t = std::shared_ptr<Linear_model_tree<T>>;
+
+
+template <class T>
+class Polynomial_model_tree : public Linear_model_tree<T>
+{
+	public:
+
+	typedef std::shared_ptr<Polynomial_model_tree> ptr_t;
+
+	Polynomial_model_tree( const std::string yaml_file_path, bool oblique = false, unsigned int degree = 2, bool interaction_only = false );
+
+	using Linear_model_tree<T>::predict;
+	T predict( const std::vector<T>& input, int& terminal_node_id ) const;
+
+
+	protected:
+
+	unsigned int _degree;
+	bool _interaction_only;
+};
 
 
 #endif
