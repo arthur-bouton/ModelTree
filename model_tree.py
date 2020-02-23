@@ -13,15 +13,16 @@ warnings.filterwarnings( action="ignore", module="sklearn", category=Convergence
 
 class Linear_regression :
 
-	def __init__( self, L1_reg=0 ) :
-		self._L1_reg = L1_reg
+	def __init__( self, L1=0, L2=0 ) :
+		self._L1 = L1
+		self._L2 = L2
 
-		if L1_reg == 0 :
+		if L1 == 0 and L2 == 0 :
 			from sklearn.linear_model import LinearRegression
 			self.model = LinearRegression()
 		else :
-			from sklearn.linear_model import Lasso
-			self.model = Lasso( L1_reg )
+			from sklearn.linear_model import ElasticNet
+			self.model = ElasticNet( L1 + L2, L1/( L1 + L2 ) )
 
 	def fit( self, X, y ) :
 		self.model.fit( X, y )
@@ -38,19 +39,20 @@ class Linear_regression :
 		self.model.n_iter_ = 0
 
 	def __str__( self ) :
-		return 'Linear regression%s' % ( ' with a L1 regularization coefficient of %g' % self._L1_reg if self._L1_reg != 0 else '' )
+		return 'Linear regression%s' % ( ' with L1 and L2 regularization coefficients of %g and %g'
+		                             % ( self._L1, self._L2 ) if self._L1 != 0 or self._L2 != 0 else '' )
 
 
 class Polynomial_regression( Linear_regression ) :
 
-	def __init__( self, degree=2, L1_reg=0, interaction_only=False ) :
+	def __init__( self, degree=2, L1=0, L2=0, interaction_only=False ) :
 		self._degree = degree
 		self._interaction_only = interaction_only
 
 		from sklearn.preprocessing import PolynomialFeatures
 		self.preprocessing = PolynomialFeatures( degree, include_bias=False, interaction_only=interaction_only )
 
-		Linear_regression.__init__( self, L1_reg )
+		Linear_regression.__init__( self, L1, L2 )
 
 	def fit( self, X, y ) :
 		X_poly = self.preprocessing.fit_transform( X ) 
@@ -62,7 +64,7 @@ class Polynomial_regression( Linear_regression ) :
 
 	def __str__( self ) :
 		return 'Polynomial regression of degree %i%s%s' % ( self._degree,
-		( ' with a L1 regularization coefficient of %g' % self._L1_reg ) if self._L1_reg != 0 else '',
+		' with L1 and L2 regularization coefficients of %g and %g' % (  self._L1, self._L2 ) if self._L1 != 0 or self._L2 != 0 else '',
 		' and only interaction features' if self._interaction_only else '' )
 
 
