@@ -92,13 +92,27 @@ def CMA_search( X, cost_function, verbose=False, indentation=0 ) :
 class Model_tree :
 
 	def __init__( self, oblique=True, max_depth=3, node_min_samples=1, model='linear', loss_tol=None, split_search='cma-es', margin_coef=0.01, search_grid=1, **model_options ) :
+		'''
+		Straight or oblique model tree regression.
+
+		oblique = True: each split is made according to a scalar threshold on a single feature (straight tree).
+		oblique = False: splits are made from a linear combination of all features (hyperplane in the feature space).
+		max_depth: maximum depth of the tree.
+		node_min_samples: minimum number of training samples to be used to define and train a terminal node.
+		model: regression model to use at each terminal node.
+		loss_tol: tolerance on the model loss at which to stop splitting.
+		split_search: function used for searching the oblique split coefficients. If split_search='cma-es', Covariance Matrix Adaptation Evolution Strategy is used.
+		margin_coef: coefficient used to incite the maximization of the margin with the training samples (oblique trees only).
+		search_grid: interval number of possible thresholds to skip for the first scan pass of a grid search (straight trees only).
+		**model_options: options to be passed to the regression model of each terminal node.
+		'''
 
 		if model == 'linear' :
 			self.model = lambda : Linear_regression( **model_options )
 		elif model == 'polynomial' :
 			self.model = lambda : Polynomial_regression( **model_options )
 		else :
-			self.model = model
+			self.model = lambda : model( **model_options )
 
 		if split_search == 'cma-es' :
 			self.split_search = CMA_search
