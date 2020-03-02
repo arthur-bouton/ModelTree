@@ -282,6 +282,13 @@ class Model_tree :
 
 
 	def fit( self, X, y, verbose=1 ) :
+		'''
+		Build the tree from scratch based on the training data given by the array X of shape ( n samples, n features ).
+		If X is a single dimension array, it is considered to be n samples with a single feature.
+		If verbose = 0, no output is given.
+		If verbose = 1, only the outputs from the tree building are displayed.
+		If verbose = 2, outputs from the split search are provided as well.
+		'''
 
 		if X.ndim == 1 :
 			X = X[:,np.newaxis]
@@ -315,9 +322,12 @@ class Model_tree :
 
 
 	def predict( self, X, return_node_id=False ) :
-
-		if X.ndim == 1 :
-			X = X[:,np.newaxis]
+		'''
+		Predict every output for the array X of shape ( n samples, n features ).
+		If X is a single dimension array, it is considered to be one sample of n features.
+		If return_node_id is True, return a tuple containing first the list of predictions
+		and second a list of the corresponding terminal node numbers.
+		'''
 
 		if self._root_node is None :
 			raise RuntimeError( 'The tree has not been built yet' )
@@ -412,6 +422,7 @@ class Model_tree :
 
 
 	def save_tree_params( self, filename ) :
+		'''Save the description of the tree and its parameters in a YAML file'''
 		with open( filename + '.yaml', 'w') as f :
 			f.write( '# %s\n' % self.__str__() )
 			f.write( '# Model: %s\n' % str( self.model() ) )
@@ -420,6 +431,7 @@ class Model_tree :
 
 
 	def load_tree_params( self, filename ) :
+		'''Load the parameters and build the tree from a YAML file'''
 		with open( filename + '.yaml', 'r') as f :
 			#self.set_tree_params( yaml.load( f ) ) # PyYAML < 5.1
 			self.set_tree_params( yaml.load( f, Loader=yaml.FullLoader ) )
