@@ -472,6 +472,6 @@ class Model_tree :
 		return '%s Model Tree (max depth: %i, node min samples: %i, loss tol: %s%s)' %\
 		( 'Oblique' if self.oblique else 'Straight', self.max_depth, self.node_min_samples,
 		  '%g' % self.loss_tol if self.loss_tol is not None else 'None',
-		  ', margin coef: %g' % self.margin_coef if self.oblique else '' )
+		  ', margin coef: %g' % self.margin_coef if self.oblique else ', search grid: %i' % self.grid )
 
 
