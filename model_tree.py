@@ -91,7 +91,7 @@ def CMA_search( X, cost_function, verbose=False, indentation=0 ) :
 
 class Model_tree :
 
-	def __init__( self, oblique=True, max_depth=3, node_min_samples=1, model='linear', loss_tol=None, split_search='cma-es', margin_coef=0.01, **model_options ) :
+	def __init__( self, oblique=True, max_depth=3, node_min_samples=1, model='linear', loss_tol=None, split_search='cma-es', margin_coef=0.01, search_grid=1, **model_options ) :
 
 		if model == 'linear' :
 			self.model = lambda : Linear_regression( **model_options )
@@ -110,6 +110,7 @@ class Model_tree :
 		self.node_min_samples = node_min_samples
 		self.loss_tol = loss_tol
 		self.margin_coef = margin_coef
+		self.grid = search_grid
 
 		self._root_node = None
 
@@ -225,6 +226,7 @@ class Model_tree :
 			split_params = ( np.array( split_params )/coef_max ).tolist()
 
 		else :
+			best_split_loss = None
 			for feature in range( X.shape[1] ) :
 				# Sort all values taken by the feature:
 				feature_values = sorted( X[:,feature].tolist() )
@@ -237,12 +239,27 @@ class Model_tree :
 				threshold_list = [ ( feature_values[i+1] + feature_values[i] )/2 for i in range( len( feature_values ) - 1 ) ]
 
 				# Record the best split seen:
-				for threshold in tqdm( threshold_list, desc='Node %i at depth %i, scanning feature [%i/%i]'
+				best_feature_loss = None
+				for threshold in tqdm( threshold_list[::self.grid], desc='Node %i at depth %i, scanning feature [%i/%i]'
 				% ( node['id'], node['depth'], feature, X.shape[1] - 1 ), leave=False, disable=verbose < 1 ) :
 					results = self._divide_and_fit( X, y, ( feature, threshold ) )
-					if 'best_split_loss' not in locals() or results['split_loss'] < best_split_loss :
+					if best_split_loss is None or results['split_loss'] < best_split_loss :
 						best_split_loss = results['split_loss']
 						split_params = [ feature, threshold ]
+					if best_feature_loss is None or results['split_loss'] < best_feature_loss :
+						best_feature_loss = results['split_loss']
+						best_feature_threshold = threshold
+				if self.grid > 1 and best_feature_threshold is not None :
+					# Search for a better split around the best threshold from the grid search for the current feature:
+					best_index = threshold_list.index( best_feature_threshold )
+					refined_start_index = max( 0, best_index - self.grid + 1 )
+					threshold_list = threshold_list[refined_start_index:best_index+self.grid]
+					for threshold in tqdm( threshold_list, desc='Node %i at depth %i, scanning feature [%i/%i] (refined search)'
+					% ( node['id'], node['depth'], feature, X.shape[1] - 1 ), leave=False, disable=verbose < 1 ) :
+						results = self._divide_and_fit( X, y, ( feature, threshold ) )
+						if results['split_loss'] < best_split_loss :
+							best_split_loss = results['split_loss']
+							split_params = [ feature, threshold ]
 
 		# Get the data and models from the optimal split:
 		results = self._divide_and_fit( X, y, split_params )
