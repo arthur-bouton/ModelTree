@@ -232,7 +232,7 @@ class Model_tree :
 				if self.node_min_samples > 1 :
 					feature_values = feature_values[self.node_min_samples-1:1-self.node_min_samples]
 				# Remove duplicate values:
-				feature_values = list( set( feature_values ) )
+				feature_values = sorted( list( set( feature_values ) ) )
 				# Identify all possible thresholds in the middle of each successive pair of feature values:
 				threshold_list = [ ( feature_values[i+1] + feature_values[i] )/2 for i in range( len( feature_values ) - 1 ) ]
 
