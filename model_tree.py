@@ -275,6 +275,16 @@ class Model_tree :
 							best_split_loss = results['split_loss']
 							split_params = [ feature, threshold ]
 
+			if best_split_loss is None :
+				if loss is None :
+					node['model'] = self.model()
+					node['model'].fit( X, y )
+					y_pred = node['model'].predict( X )
+					loss = mean_squared_error( y, y_pred )
+				if verbose :
+					self._print_terminal_node( node['id'], node['depth'], 'no threshold', len( y ), loss )
+				return
+
 		# Get the data and models from the optimal split:
 		results = self._divide_and_fit( X, y, split_params )
 
