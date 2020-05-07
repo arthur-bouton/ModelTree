@@ -12,14 +12,14 @@ Reference function | Straight tree | Oblique tree
 ![](pics/Reference_2D.png?raw=true) | ![](pics/Prediction_2D_straight.png?raw=true) | ![](pics/Prediction_2D_oblique.png?raw=true)
 || (max_depth=5) | (max_depth=3)
 
-The source file of this example is *example_2D.py*.
+The source file of the example above is *example_2D.py*.
 
 
-Here is another example with a single-dimension input space and piecewise second-order regressions:
+Here is another example with a single-dimension input space and piecewise second-order regressions given by a model tree, compared to monolithic polynomial regressions of degree 4 or 8:
 
 ![](pics/Example_1D.png?raw=true "1D example")
 
-The source file of this example is *example_1D.py*.
+The source file of the example above is *example_1D.py*.
 
 
 ### Usage

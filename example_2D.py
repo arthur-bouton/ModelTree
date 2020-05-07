@@ -48,22 +48,22 @@ y_data = data[:,2]
 
 
 
-###############
-# MODEL TREES #
-###############
+##############
+# MODEL TREE #
+##############
 
-#omt = Model_tree( oblique=False, max_depth=5, node_min_samples=10, loss_tol=0.001, model='linear' )
-omt = Model_tree( oblique=True, max_depth=3, node_min_samples=10, loss_tol=0.001, model='linear' )
+#model_tree = Model_tree( oblique=False, max_depth=5, node_min_samples=10, loss_tol=0.001, model='linear' )
+model_tree = Model_tree( oblique=True, max_depth=3, node_min_samples=10, loss_tol=0.001, model='linear' )
 
-omt.fit( X_data, y_data, verbose=1 )
-#omt.save_tree_params( 'mt_params' )
-#omt.load_tree_params( 'mt_params' )
+model_tree.fit( X_data, y_data, verbose=1 )
+#model_tree.save_tree_params( 'mt_params' )
+#model_tree.load_tree_params( 'mt_params' )
 
 # Predictions to be plotted:
 Zp = np.zeros_like( Zr )
 for i, x in enumerate( x_scale ) :
 	for j, y in enumerate( y_scale ) :
-		Zp[j][i] = omt.predict( np.array([ x, y ]) )
+		Zp[j][i] = model_tree.predict( np.array([ x, y ]) )
 
 
 
