@@ -22,6 +22,13 @@ Here is another example with a single-dimension input space and piecewise second
 The source file of the example above is *example_1D.py*.
 
 
+### Dependencies
+
+To install the dependencies, run:
+
+`$ pip install -r requirements.txt`
+
+
 ### Usage
 
 The first argument when initializing a Model_tree object is a boolean specifying if the tree is oblique.
@@ -82,14 +89,14 @@ The parameters can also be extracted as a dictionary with `get_tree_params()` an
 
 A linear or polynomial model tree trained in python can then be imported in a C++ program thanks to the class templates *Linear_model_tree* and *Polynomial_model_tree* defined in *cpp/model_tree.cc*. To import the parameters from a YAML file, you will need the library [yaml-cpp](https://github.com/jbeder/yaml-cpp 'github.com/jbeder/yaml-cpp') which can be installed on Debian-based systems with:
 
-`sudo apt-get install libyaml-cpp-dev`
+`$ sudo apt-get install libyaml-cpp-dev`
 
 Below is an example showing how to use the model tree in C++:
 
 ```
 #include "model_tree.hh"
 
-main()
+int main()
 {
 	// Declaration of an oblique model tree with second-order regressions:
 	Polynomial_model_tree<double> tree( "./mt_params.yaml", true, 2 );
