@@ -477,6 +477,8 @@ class Model_tree :
 			#self.set_tree_params( yaml.load( f ) ) # PyYAML < 5.1
 			self.set_tree_params( yaml.load( f, Loader=yaml.FullLoader ) )
 
+		return self
+
 
 	def __str__( self ) :
 		return '%s Model Tree (max depth: %i, node min samples: %i, loss tol: %s%s)' %\
