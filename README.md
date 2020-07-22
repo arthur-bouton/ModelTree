@@ -22,11 +22,11 @@ Here is another example with a single-dimension input space and piecewise second
 The source file of the example above is *example_1D.py*.
 
 
-### Dependencies
+### Installation
 
-To install the dependencies, run:
+To install the module in the user space, run in a terminal:
 
-`$ pip install -r requirements.txt`
+`$ pip install . --user`
 
 
 ### Usage
