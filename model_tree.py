@@ -417,7 +417,6 @@ class Model_tree :
 			params = node['model'].get_params()
 			nonzero = sum( x != 0 for x in params )
 			total = len( params )
-			return nonzero, total
 		else :
 			params = node['split_params']
 			if self.oblique :
@@ -432,7 +431,7 @@ class Model_tree :
 				nonzero += n
 				total += t
 
-			return nonzero, total
+		return nonzero, total
 
 
 	def get_number_of_params( self ) :

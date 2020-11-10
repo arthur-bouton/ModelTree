@@ -1,4 +1,4 @@
-# Oblique/straight model tree for regression
+# Oblique and straight model trees for regression
 
 
 Regression trees approximate a function by partitioning the input space and applying an independent regression model on each of the subdivisions.<br />
@@ -12,14 +12,14 @@ Reference function | Straight tree | Oblique tree
 ![](pics/Reference_2D.png?raw=true) | ![](pics/Prediction_2D_straight.png?raw=true) | ![](pics/Prediction_2D_oblique.png?raw=true)
 || (max_depth=5) | (max_depth=3)
 
-The source file of the example above is *example_2D.py*.
+The source file of the example above is [example_2D.py](example_2D.py).
 
 
 Here is another example with a single-dimension input space and piecewise second-order regressions given by a model tree, compared to monolithic polynomial regressions of degree 4 or 8:
 
 ![](pics/Example_1D.png?raw=true "1D example")
 
-The source file of the example above is *example_1D.py*.
+The source file of the example above is [example_1D.py](example_1D.py).
 
 
 ### Installation
@@ -33,7 +33,7 @@ To install the module in the user space, run in a terminal:
 
 The first argument when initializing a Model_tree object is a boolean specifying if the tree is oblique.
 
-If true, the argument `split_search` let us specify the algorithm to be used in order to find the optimal split at each node. The function to pass has to take an array of data and the cost function as arguments and return the set of parameters for the best hyperplane found, as suggested by the default function *CMA_search* defined in *model_tree.py*.
+If true, the argument `split_search` let us specify the algorithm to be used in order to find the optimal split at each node. The function to pass has to take an array of data and the cost function as arguments and return the set of parameters for the best hyperplane found, as suggested by the default function *CMA_search* defined in [model_tree.py](model_tree.py).
 
 By default, `split_search='cma-es'`, resulting in the use of the Covariance Matrix Adaptation Evolution Strategy implemented [here](https://github.com/CMA-ES/pycma "github.com/CMA-ES/pycma").
 
@@ -48,7 +48,7 @@ where *L<sub>i</sub>* is the loss obtained by the regression model applied to th
 
 Otherwise, if the tree is straight, an exhaustive research is performed for every cut possible along every feature. This process can be speed up with the argument `search_grid` which let us specify an interval number of possible thresholds to skip at a first scan pass. The second scan pass then looks for all thresholds in the best interval found previously.
 
-Wether the tree is oblique or not, the model to use at each terminal node is specified by the argument `model`. It can be one of the strings `'linear'` or `'polynomial'` in order to use linear or polynomial regressions with L1 and L2 regularizations implemented with the [scikit-learn](https://scikit-learn.org "scikit-learn.org") library. Otherwise, a class describing any particular model can be provided as long as it implements the same methods as the classes *Linear_regression* and *Polynomial_regression* defined in *model_tree.py*.
+Wether the tree is oblique or not, the model to use at each terminal node is specified by the argument `model`. It can be one of the strings `'linear'` or `'polynomial'` in order to use linear or polynomial regressions with L1 and L2 regularizations implemented with the [scikit-learn](https://scikit-learn.org "scikit-learn.org") library. Otherwise, a class describing any particular model can be provided as long as it implements the same methods as the classes *Linear_regression* and *Polynomial_regression* defined in [model_tree.py](model_tree.py).
 
 Any argument can be passed to the model by keyword. For example, to declare an oblique polynomial model tree of degree 3 with a L2 regularization of 0.01 and a maximum depth of 5 nodes, you would write:
 
@@ -65,7 +65,7 @@ If X is a single dimension array, it is considered to be one sample of n feature
 If return_node_id is True, return a tuple containing first the list of predictions and second a list of the corresponding terminal node numbers.
 
 
-### All the arguments for the initialization of a Model_tree object
+### Arguments for the initialization of a Model_tree object
 
 `oblique=False`: each split is made according to a scalar threshold on a single feature (straight tree).<br />
 `oblique=True`: splits are defined by a linear combination of all features (hyperplane in the feature space).<br />
@@ -87,7 +87,7 @@ The parameters can also be extracted as a dictionary with `get_tree_params()` an
 
 ### Use a trained model tree in a C++ program
 
-A linear or polynomial model tree trained in python can then be imported in a C++ program thanks to the class templates *Linear_model_tree* and *Polynomial_model_tree* defined in *cpp/model_tree.cc*. To import the parameters from a YAML file, you will need the library [yaml-cpp](https://github.com/jbeder/yaml-cpp 'github.com/jbeder/yaml-cpp') which can be installed on Debian-based systems with:
+A linear or polynomial model tree trained in python can then be imported in a C++ program thanks to the class templates *Linear_model_tree* and *Polynomial_model_tree* defined in [cpp/model_tree.cc](cpp/model_tree.cc). To import the parameters from a YAML file, you will need the library [yaml-cpp](https://github.com/jbeder/yaml-cpp 'github.com/jbeder/yaml-cpp') which can be installed on Debian-based systems with:
 
 `$ sudo apt-get install libyaml-cpp-dev`
 
