@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
 	name='modeltree',
-	version='1.0',
+	version='1.1',
 	description='Oblique/straight model tree for regression',
 	license='GPL-3.0',
 	author='Arthur Bouton',

@@ -322,13 +322,14 @@ class Model_tree :
 		% ( '    '*depth, node_id, depth, termination_str, ' '*abs( 10 - len( termination_str ) ), self._nsamples_len, n_samples, loss ) )
 
 
-	def fit( self, X, y, verbose=1 ) :
+	def fit( self, X, y, verbose=1, from_scratch=False ) :
 		'''
 		Build the tree from scratch based on the training data given by the array X of shape ( n samples, n features ).
 		If X is a single dimension array, it is considered to be n samples with a single feature.
 		If verbose = 0, no output is given.
 		If verbose = 1, only the outputs from the tree building are displayed.
 		If verbose = 2, outputs from the split search are provided as well.
+		If from_scratch = False and a tree already exists, it will continue building the tree from each current terminal node.
 		'''
 
 		if X.ndim == 1 :
@@ -339,14 +340,62 @@ class Model_tree :
 			print( 'Model: %s' % str( self.model() ) )
 			self._nsamples_len = len( str( len( y ) ) )
 
-		self._root_node = self._create_node()
-		self._split_recursively( self._root_node, X, y, verbose )
+		if self._root_node is None or from_scratch :
+			# Build the tree from the root:
+			self._root_node = self._create_node()
+			self._split_recursively( self._root_node, X, y, verbose )
+		else :
+			# Evaluate how the current terminal nodes divide the training data and performe on them:
+			y_pred, node_ids = self.predict( X, return_node_id=True )
+			terminal_nodes = [ self._get_node_from_id( node_id, self._root_node ) for node_id in sorted( set( node_ids ) ) ]
+
+			# Continue building the tree from each current terminal node getting samples:
+			for node in terminal_nodes :
+				indices = [ node_id == node['id'] for node_id in node_ids ]
+				node_loss = mean_squared_error( y[indices], y_pred[indices] )
+
+				if self.loss_tol is None or node_loss > self.loss_tol :
+					self._split_recursively( node, X[indices], y[indices], verbose, node_loss )
+				elif verbose :
+					self._print_terminal_node( node['id'], node['depth'], 'loss tol', sum( indices ), node_loss )
+
+			# Reset the order of all node IDs:
+			self._reset_ids()
 
 		if verbose :
 			y_pred = self.predict( X )
 			loss = mean_squared_error( y, y_pred )
 			print( 'Final loss: %g, number of nodes: %i, number of non-zero parameters: %i, total number of parameters: %i'
 			% ( loss, self._node_count, *self.get_number_of_params() ) )
+
+
+	def _get_node_from_id( self, node_id, current_node ) :
+
+		if current_node['id'] == node_id :
+			return current_node
+		elif current_node['terminal'] :
+			return None
+		else :
+			for child_node in current_node['children'] :
+				node = self._get_node_from_id( node_id, child_node )
+				if node is not None :
+					return node
+			return None
+
+
+	def _reset_ids( self, current_node=None ) :
+
+		if current_node is None :
+			current_node = self._root_node
+			self._node_count = 1
+		else :
+			self._node_count += 1
+
+		current_node['id'] = self._node_count
+
+		if not current_node['terminal'] :
+			for child_node in current_node['children'] :
+				node = self._reset_ids( child_node )
 
 
 	def _traverse_nodes_and_predict( self, node, x, return_node_id=False ) :
@@ -449,16 +498,17 @@ class Model_tree :
 		else :
 			node['terminal'] = False
 			node['split_params'] = tree_params[node['id']]['split params']
-			node['children'] = {}
+			node['children'] = []
 			for child in range( 2 ) :
-				node['children'][child] = self._create_node( node['depth'] + 1 )
+				node['children'].append( self._create_node( node['depth'] + 1 ) )
 				self._set_params_recursively( node['children'][child], tree_params )
 
 
 	def set_tree_params( self, tree_params ) :
 		'''Build the tree according to a dictionary with the same structure as returned by get_tree_params()'''
-		self._root_node = self._create_node()
-		self._set_params_recursively( self._root_node, tree_params )
+		if tree_params is not None :
+			self._root_node = self._create_node()
+			self._set_params_recursively( self._root_node, tree_params )
 
 
 	def save_tree_params( self, filename ) :
