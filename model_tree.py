@@ -536,3 +536,35 @@ class Model_tree :
 		  ', margin coef: %g' % self.margin_coef if self.oblique else ', search grid: %i' % self.grid )
 
 
+	def reroot( self, X, y, verbose=1 ) :
+
+		if self._root_node is None :
+			raise RuntimeError( 'The tree has not been built yet' )
+
+		y_pred, node_ids = self.predict( X, return_node_id=True )
+		terminal_node_ids = sorted( set( node_ids ) )
+
+		loss_ratios = []
+		split_params = []
+		for node_id in terminal_node_ids :
+			if node_id + 1 in terminal_node_ids :
+
+				indices = [ i == node_id or i == node_id + 1 for i in node_ids ]
+				model_0 = self.model()
+				model_0.fit( X[indices], y[indices] )
+				y_pred_0 = model_0.predict( X[indices] )
+				loss_0 = mean_squared_error( y[indices], y_pred_0 )*sum( indices )
+
+				indices = [ i == node_id for i in node_ids ]
+				loss_1 = mean_squared_error( y[indices], y_pred[indices] )*sum( indices )
+
+				indices = [ i == node_id + 1 for i in node_ids ]
+				loss_2 = mean_squared_error( y[indices], y_pred[indices] )*sum( indices )
+
+				loss_ratios.append( ( loss_1 + loss_2 )/loss_0 )
+
+				split_params.append( self._get_node_from_id( node_id - 1, self._root_node )['split_params'] )
+
+		root_split_params = split_params[loss_ratios.index( min( loss_ratios ) )]
+
+
