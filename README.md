@@ -5,6 +5,11 @@ Regression trees approximate a function by partitioning the input space and appl
 A **straight** tree divides the input space in two at each node by selecting a single feature and splitting at a threshold.<br />
 An **oblique** tree divides the input space in two at each node with an hyperplane. This way, the partitioning can accommodate multivariate frontiers and greatly reduce the number of nodes needed.
 
+
+## Examples
+
+### 2D inputs
+
 Below is an example for which the training set is provided by the composition of two sigmoid functions. Both model trees tries to reproduce the reference function with a collection of linear regressions. The straight tree can easily model the sigmoid function that is aligned with a single feature but struggle to approximate the multivariate sigmoid function. Conversely, the oblique tree can find a more relevant segmentation which allows a shallower tree to achieve a better match.
 
 Reference function | Straight tree | Oblique tree
@@ -12,8 +17,22 @@ Reference function | Straight tree | Oblique tree
 ![](pics/Reference_2D.png?raw=true) | ![](pics/Prediction_2D_straight.png?raw=true) | ![](pics/Prediction_2D_oblique.png?raw=true)
 || (max_depth=5) | (max_depth=3)
 
+Both resulting trees can be compared using the method `Model_tree.diagram()`:
+
+<p align="center">
+	<img src="pics/Diagram_example_2D_straight.png?raw=true">
+	<br/><i>Diagram of the resulting straight tree</i>
+</p>
+
+<p align="center">
+	<img src="pics/Diagram_example_2D_oblique.png?raw=true" width="350">
+	<br/><i>Diagram of the resulting oblique tree</i>
+</p>
+
 The source file of the example above is [example_2D.py](example_2D.py).
 
+
+### 1D inputs
 
 Here is another example with a single-dimension input space and piecewise second-order regressions given by a model tree, compared to monolithic polynomial regressions of degree 4 or 8:
 
@@ -22,14 +41,14 @@ Here is another example with a single-dimension input space and piecewise second
 The source file of the example above is [example_1D.py](example_1D.py).
 
 
-### Installation
+## Installation
 
 To install the module in the user space, run in a terminal:
 
 `$ pip install . --user`
 
 
-### Usage
+## Usage
 
 The first argument when initializing a Model_tree object is a boolean specifying if the tree is oblique.
 

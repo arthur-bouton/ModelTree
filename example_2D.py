@@ -2,6 +2,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.colors import LightSource
 from model_tree import Model_tree
 import sys
 
@@ -77,13 +78,16 @@ zmin = 0 ; zmax = 1
 
 left = 0
 bottom = 0 
-width = 1
+width = 0.95
 height = 1
+
+ls = LightSource( azdeg=320, altdeg=45 )
 
 
 fig1 = plt.figure( 'Reference 2D', figsize=(8,8) )
 ax = plt.axes( [ left, bottom, width, height ], projection='3d' )
-ax.plot_surface( X, Y, Zr )
+rgb = ls.shade( Zr, plt.cm.coolwarm )
+ax.plot_surface( X, Y, Zr, rstride=1, cstride=1, facecolors=rgb )
 ax.set_xlabel( 'x' )
 ax.set_ylabel( 'y' )
 ax.set_zlabel( 'z' )
@@ -93,7 +97,8 @@ ax.set_zlim3d( zmin, zmax )
 
 fig2 = plt.figure( 'Prediction 2D', figsize=(8,8) )
 ax = plt.axes( [ left, bottom, width, height ], projection='3d' )
-ax.plot_surface( X, Y, Zp )
+rgb = ls.shade( Zp, plt.cm.coolwarm )
+ax.plot_surface( X, Y, Zp, rstride=1, cstride=1, facecolors=rgb )
 ax.set_xlabel( 'x' )
 ax.set_ylabel( 'y' )
 ax.set_zlabel( 'z' )
@@ -105,5 +110,8 @@ if len( sys.argv ) > 1 and sys.argv[-1] == 'w' :
 	fig1.savefig( 'pics/Reference_2D.png' )
 	#fig2.savefig( 'pics/Prediction_2D_straight.png' )
 	fig2.savefig( 'pics/Prediction_2D_oblique.png' )
+
+	#model_tree.diagram( filename='pics/Diagram_example_2D_straight.png', feature_names=[ 'x', 'y' ], float_format='{:.2f}' )
+	model_tree.diagram( filename='pics/Diagram_example_2D_oblique.png', feature_names=[ 'x', 'y' ], float_format='{:.2f}' )
 
 plt.show()
