@@ -15,6 +15,7 @@ setup(
 		'cma>=2.7.0',
 		'PyYAML>=5.1.2',
 		'scikit-learn>=0.21.3',
-		'tqdm>=4.31.1'
+		'tqdm>=4.31.1',
+		'graphviz>=0.16'
 	]
 )

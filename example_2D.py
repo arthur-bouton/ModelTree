@@ -58,6 +58,7 @@ model_tree = Model_tree( oblique=True, max_depth=3, node_min_samples=10, loss_to
 model_tree.fit( X_data, y_data, verbose=1 )
 #model_tree.save_tree_params( 'mt_params' )
 #model_tree.load_tree_params( 'mt_params' )
+model_tree.diagram( feature_names=[ 'x', 'y' ], float_format='{:.2f}' )
 
 # Predictions to be plotted:
 Zp = np.zeros_like( Zr )

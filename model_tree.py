@@ -536,3 +536,72 @@ class Model_tree :
 		  ', margin coef: %g' % self.margin_coef if self.oblique else ', search grid: %i' % self.grid )
 
 
+	def diagram( self, filename=None, feature_names=None, float_format='{:g}' ) :
+		'''Generate a diagram that depicts the tree and its parameters'''
+
+		if self._root_node is None :
+			raise RuntimeError( 'The tree has not been built yet' )
+
+		from graphviz import Digraph
+
+		g = Digraph( 'model_tree' )
+
+
+		def build_diagram_recursively( node, parent_name=None, edge_label=None ) :
+
+			# Define the unique identifier name for the current node:
+			node_name = str( node['id'] )
+
+			# Define the text in the bloc:
+			if node['terminal'] :
+				node_label = 'Model coefficients:\n'
+				model_params = node['model'].get_params()
+				if type( node['model'] ) is Linear_regression :
+					if feature_names is None :
+						feature_list = [ 'feature %i' % i for i in range( 1, len( model_params ) ) ]
+					else :
+						feature_list = feature_names.copy()
+					feature_list.append( 'bias' )
+					node_label += '\n'.join( [ ( '{}: ' + float_format ).format( f, p ) for f, p in zip( feature_list, model_params ) if p != 0 ] )
+				else :
+					node_label += '\n'.join( map( float_format.format, model_params ) )
+			else :
+				if self.oblique :
+					if feature_names is None :
+						feature_list = [ 'feature %i' % i for i in range( 1, len( node['split_params'] ) ) ]
+					else :
+						feature_list = feature_names.copy()
+					line_format = '{} ' + float_format + ' \u00D7 {}'
+					features_and_params = zip( feature_list, node['split_params'] )
+					node_label = '\n'.join( [ line_format.format( '+' if p >= 0 else '-', abs( p ), f ) for f, p in features_and_params ] )
+					node_label += ( '\n\u2265 ' + float_format ).format( node['split_params'][-1] )
+				else :
+					node_label = 'feature {}'.format( node['split_params'][0] + 1 ) if feature_names is None else feature_names[node['split_params'][0]]
+					node_label += ( ' \u2265 ' + float_format ).format( node['split_params'][1] )
+
+			# Draw the bloc:
+			g.node( node_name, node_label, shape=( 'box' if node['terminal'] else 'diamond' ) )
+
+			if parent_name is not None :
+				# Draw the edge with the parent node:
+				g.edge( parent_name, node_name, edge_label )
+
+			if not node['terminal'] :
+				# Continue with the children nodes:
+				for child in range( 2 ) :
+					build_diagram_recursively( node['children'][child], node_name, 'yes' if not child else 'no' )
+
+
+		build_diagram_recursively( self._root_node )
+
+
+		if filename is None :
+			g.view( cleanup=True )
+		else :
+			# Save the diagram into a file which format matches the extension provided:
+			try :
+				basename, extension = filename.rsplit( '.', 1 )
+				g.format = extension
+			except ValueError :
+				basename = filename
+			g.render( filename=basename, view=False, cleanup=True )
