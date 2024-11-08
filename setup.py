@@ -8,7 +8,7 @@ setup(
 	license='GPL-3.0',
 	author='Arthur Bouton',
 	author_email='arthur.bouton@gadz.org',
-	url='https://github.com/Bouty92/ModelTree',
+	url='https://github.com/arthur-bouton/ModelTree',
 	py_modules=[ 'model_tree' ],
 	install_requires=[
 		'numpy>=1.16.2',
